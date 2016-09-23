@@ -1,0 +1,32 @@
+<html>
+	<head>
+		<style>
+			.redbd{
+				border:1px solid red;
+			}
+		</style>
+	</head>
+	<body>
+		<input type="text" id="name1" value="123"/>
+		<input type="text" id="name2" value="456" class="redbd"/>
+		<input type="text" ff-id="{{pe.id}}" ff-value="{{pe.value}}" />
+		<ul ff-id="{{ul.id}}">
+			<li ff-style="{{ul.li.style}}">
+				{{ul.li.text}}
+			</li>
+		</ul>
+	</body>
+
+	<script type="text/javascript" src="mvvn.js"></script>
+	<script type="text/javascript">
+		flyfire.on("#name1,#name2","input",function(e){
+				console.log(this);
+			});
+		flyfire.context({
+			data : {
+							pe : {id:"number",value:"456"},
+							ul : {id:"ul-id",li:{style:"color:red;"}}
+						}	
+		});
+	</script>
+</html>
