@@ -126,10 +126,11 @@
 				var joinPoint = {
 					args : arguments,
 					proxy : this,
-					resume : true
+					resume : true,
+					result : undefined
 				};
 				func.apply(this,[joinPoint]) ;
-				return joinPoint.resume&&__self.apply(this,joinPoint.args);
+				return joinPoint.resume?__self.apply(this,joinPoint.args):joinPoint.result;
 			};
 		};
 		Function.prototype.after = function(func){
@@ -619,6 +620,13 @@
 				this.JSAccessorStore = JSAccessorStore;
 				this.fieldMediator = fieldMediator;
 			}.asConstructor("JsProxy");
+			w.stringify = JSON.stringify;
+			JSON.stringify = JSON.stringify.before(function(jp){
+					if(rawType["JsProxy"].derived(jp.args[0])){
+						jp.result = w.stringify(jp.args[0].JSObject);
+						jp.resume = false;
+					}
+			});
 			return function(instance,accessors){
 				var jsPxy = new JsProxy(instance,accessors,fieldMediator);
 				var defineDescription = {};
@@ -717,7 +725,73 @@
 				jsPxy.classes();
 				return jsPxy.proxy(instance,accessors,fieldMediator);
 			};	
-		})());
+		})()).before(function(jp){
+			assertObject(jp.args[0]);	
+		});
+		
+		/**
+		* event{
+		*		target: object/array
+		*		trigger: key/index
+		*		oldValue:	object[key]/array[index] @before set access
+		*		newValue:	object[key]/array[index] @after set access
+		*		value: object[key]/array[index] @before get access
+		*		type:	set/get
+		*}
+		*/
+		
+		var mockContext = {};
+		
+		var mockObject = ff.mockObject = function(instance){
+			var context = mockContext[instance.hashCode()] = {};
+			var accessors = {};
+			each(instance,function(){
+					var hooks = context[this.key] = {};
+					var accessor = accessors[this.key] = {};
+					hooks.get = {log:function(e){console.log(e);}};
+					accessor.get = (function(key,hooks){
+							return function(){
+								var mockEvent = {type:'get',trigger:key,target:this,value:this[key]};
+								each(hooks,function(){
+									(this.value)(mockEvent);
+								});
+								return this[key];	
+							}
+					})(this.key,hooks.get);
+					hooks.set = {log:function(e){console.log(e);}};
+					accessor.set = (function(key,hooks){
+							return function(value){
+								var mockEvent = {type:'set',trigger:key,target:this,oldValue:this[key],newValue:value};
+								each(hooks,function(){
+									(this.value)(mockEvent);
+								});
+								this[key] = value;	
+							}
+					})(this.key,hooks.set);
+			},function(){
+				return !rawType["Function"].derived(this.value);	
+			});
+			console.log(accessors);
+			return defineProperties(instance,accessors);
+		};
+		
+		var mockArray = ff.mockArray = function(instance){
+			instance.push = instance.push.around(function(jp){
+					
+			});
+		}.before(function(jp){
+			assertArray(jp.args[0]);	
+		});
+		
+		var mock = ff.mock = function(instance){
+			if(rawType["Object"].derived(instance)){
+				mockObject(instance);
+			}else if(rawType["Array"].derived(instance)){
+				mockArray(instance);
+			}else{
+				throw 'expected Object or Array...';	
+			}
+		}
 		
 		var context = ff.context = function(dom,options){
 			var ops = extend({
