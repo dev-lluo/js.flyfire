@@ -187,19 +187,19 @@
 
     /**
      * event{
-					*		target: object/array
-					*		trigger: key/index
-					*		oldValue:	object[key]/array[index] @before set access
-					*		newValue:	object[key]/array[index] @after set access
-					*		value: object[key]/array[index] @before get access
+					*		target: object
+					*		trigger: key
+					*		oldValue:	object[key] @before set access
+					*		newValue:	object[key] @after set access
+					*		value: object[key] @before get access
 					*		type:	set/get
 					*}
      */
 
-    var obsContext = {};
+    var mockContext = {};
 
-    var obsObject = ff.obsObject = function(instance){
-        var context = obsContext[instance.hashCode()] = {};
+    var mockObject = ff.mockObject = function(instance){
+        var context = mockContext[instance.hashCode()] = {};
         var accessors = {};
         each(instance,function(){
             var hooks = context[this.key] = {};
@@ -207,9 +207,9 @@
             hooks.get = {log:function(e){console.log(e);}};
             accessor.get = (function(key,hooks){
                 return function(){
-                    var obsEvent = {type:'get',trigger:key,target:this,value:this[key]};
+                    var mockEvent = {type:'get',trigger:key,target:this,value:this[key]};
                     each(hooks,function(){
-                        (this.value)(obsEvent);
+                        (this.value)(mockEvent);
                     },function(){
                     		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
                     });
@@ -219,9 +219,9 @@
             hooks.set = {log:function(e){console.log(e);}};
             accessor.set = (function(key,hooks){
                 return function(value){
-                    var obsEvent = {type:'set',trigger:key,target:this,oldValue:this[key],newValue:value};
+                    var mockEvent = {type:'set',trigger:key,target:this,oldValue:this[key],newValue:value};
                     each(hooks,function(){
-                        (this.value)(obsEvent);
+                        (this.value)(mockEvent);
                     },function(){
                     		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
                     });
@@ -233,23 +233,103 @@
         });
         return proxy(instance,accessors);
     };
-    
-    var obsArray = ff.obsArray = function(instance){
-    	
+    /**
+     * event{
+					*		target: array
+					*		trigger: index
+					*		items: items
+					*		type:	add/del/srt
+					*}
+     */
+    var mockArrayMethods = ["pop","push","reverse","shift","sort","splice","unshift"];
+    var mockArray = ff.mockArray = function(instance){
+    	var context = mockContext[instance.hashCode()] = {};
+    	context.pop = {log:function(e){console.log(e);}}
+    	instance.pop = instance.pop.after(function(jp){
+    		var mockEvent = {type:"del",target:this,trigger:this.length,items:[jp.result]};
+    		each(context.pop,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	context.push = {log:function(e){console.log(e);}};
+    	instance.push = instance.push.before(function(jp){
+    		var mockEvent = {type:"add",target:this,trigger:this.length,items:jp.args};
+    		each(context.push,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	context.reverse = {log:function(e){console.log(e);}}
+    	instance.reverse = instance.reverse.after(function(jp){
+    		var mockEvent = {type:"srt",target:this,trigger:0,items:this};
+    		each(context.reverse,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	context.shift = {log:function(e){console.log(e);}}
+    	instance.shift = instance.shift.after(function(jp){
+    		var mockEvent = {type:"del",target:this,trigger:0,items:[jp.result]};
+    		each(context.shift,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	context.sort = {log:function(e){console.log(e);}}
+    	instance.sort = instance.sort.after(function(jp){
+    		var mockEvent = {type:"srt",target:this,trigger:0,items:this};
+    		each(context.sort,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	context.splice = {log:function(e){console.log(e);}}
+    	instance.splice = instance.splice.around(function(jp){
+    		var mockEventAdd = {type:"add",target:this,trigger:jp.args[0],items:slice.call(jp.args,2)};
+    		var result = jp.invoke();
+    		var mockEventDel = {type:"del",target:this,trigger:jp.args[0],items:result};
+    		each(context.splice,function(){
+                (this.value)(mockEventDel);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    		each(context.splice,function(){
+                (this.value)(mockEventAdd);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    		return result;
+    	});
+    	context.unshift = {log:function(e){console.log(e);}};
+    	instance.unshift = instance.unshift.before(function(jp){
+    		var mockEvent = {type:"add",target:this,trigger:0,items:jp.args};
+    		each(context.unshift,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	});
+    	return instance;
     };
 
-    var observe = ff.observe = function(instance){
-    		if(rawType.Object.has(instance)){
-					obsObject(instance);
-				}else if(rawType.Array.has(instance)){
-					obsArray(instance);
+    var mock = ff.mock = function(instance){
+    		if(RawType.Object.has(instance)){
+					return mockObject(instance);
+				}else if(RawType.Array.has(instance)){
+					return mockArray(instance);
 				}else{
 					throw 'expected Object or Array...';
 				}	
     };
     var Association = function(ass){
     	this.exp = /(\.{0,1}([a-zA-Z0-9_]{1,}))|(\[([0-9]{1,})\])/g;
-    	this.ass = ass;
+    	this.ass = ass||"";
     	this.cached = null;
     };
     Association.prototype.hasNext = function(){
@@ -271,13 +351,16 @@
     	}
     	return paths;
     };
-    var listen = ff.listen = function(instance,ass,type,func){
+    var observe = ff.observe = function(instance,type,func,ass){
     		var cursor = instance;
     		var assn = new Association(ass);
     		var paths = assn.all();
     		for(var i = 0;i<paths.length-1;i++){
     			cursor = cursor[paths[i]];	
     		}
-    		obsContext[cursor.hashCode()][paths[paths.length-1]][type][func.hashCode()] = func;
+    		(paths.length
+    			?mockContext[cursor.hashCode()][paths[paths.length-1]][type]
+    			:mockContext[cursor.hashCode()][type])
+    		[func.hashCode()] = func;
     };
 })(window,document,flyfire,Object);
