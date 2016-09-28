@@ -4,6 +4,7 @@
     var OI8Select = ff.OI8Select = function(a,b){
         return OI8?b:a;
     };
+    var KeyWord = ff.KeyWord = /^(hashCode|derivedFrom|getType)$/;
     var I64BIT_TABLE =
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     var UUID = ff.UUID = function(){
@@ -40,7 +41,7 @@
     Date.prototype.hashCode = function(){
         return this.hash||(this.hash = String(this).hashCode());
     };
-    Object.prototype.hashCode = function(nd){
+    Object.prototype.hashCode = function(){
         if(this.hash){
             return this.hash;
         }else{
@@ -49,7 +50,7 @@
                 hash.push(key.hashCode());
                 var type = RawType(this[key]);
                 if(RawType.Object === type||RawType.Array === type){
-                    if(nd){
+                    if(arguments[0]){
                         hash.push(type);
                     }else{
                         hash.push(this[key].hashCode(true));
@@ -70,7 +71,7 @@
     Object.prototype.getType = function(){
     		return RawType(this);
     };
-    Array.prototype.hashCode = function(nd){
+    Array.prototype.hashCode = function(){
         if(this.hash)
             return this.hash;
         else{
@@ -79,7 +80,7 @@
                 hash.push(i);
                 var type = RawType(this[i]);
                 if(RawType.Object === type||RawType.Array === type){
-                    if(nd){
+                    if(arguments[0]){
                         hash.push(type);
                     }else{
                         hash.push(this[i].hashCode(true));
@@ -122,7 +123,7 @@
 		},function(){
 				while(this.exec()!=null);//IE8下不能使用this.lastIndex开始重新检索新字符串
 		});
-		Function.prototype.hashCode = function(){
+		Function.prototype.hashCode = function(){
 				return this.hash||(this.hash = String(this).replace(/([\r\n])\s*/g,"").hashCode());
 		};
     Function.prototype.before = function(func){
@@ -250,8 +251,10 @@
         if(iterable){
             if("length" in iterable){
                 for(var i = 0;i<iterable.length;i++){
-                    if(filter&&!filter.apply(iterable[i],[i,iterable[i]])){continue;}
-                    else{func.apply(iterable[i],[i,iterable[i]]);}
+                		if(iterable[i]){
+	                    if(filter&&!filter.apply(iterable[i],[i,iterable[i]])){continue;}
+	                    else{func.apply(iterable[i],[i,iterable[i]]);}
+                    }
                 }
             }else{
                 for(var key in iterable){
@@ -375,7 +378,7 @@
     var assertType = ff.assertType = function(obj,type,strict,e){
         var t = RawType(obj);
         if(t!==type){
-            if(!strict&&(t===RawType.Undefined||t===RawType.Null||t===RawType.Object))return;
+            if(!strict&&(t===RawType.Undefined||t===RawType.Null))return;
             throw e||"expected: "+type+" unexpected: "+t;
         }
     };

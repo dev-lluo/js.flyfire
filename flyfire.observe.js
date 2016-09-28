@@ -1,32 +1,283 @@
 ;(function(w,d,ff,o){
-	var OI8Select = ff.OI8Select;
-  var each = ff.each;
-  var fieldAccessor = function(instance,accessors,name,value){
-  	if(arguments.length===4){
-  			return accessors[name].set.call(instance,value);
-  	}else{
-  			accessors[name].get.call(instance);	
-  	}
-  };
-  var methodAccessor = function(instance,accessors,name){
-  	return accessors[name].apply(instance,arguments.slice(3));	
-  }
-  var	defineProperties = OI8Select((function(def){
-  	var JsObjectProxy = function(instance,accessors,fieldAccessor,methodAccessor){
-  		this.inst = instance;
-  		this.accs = accessors;
-  		this.facc = fieldAccessor;
-  		this.macc = methodAccessor;
-  	};
-  	return function(instance,accessors){
-  			var jopxy = new JsObjectProxy(instance,accessors,fieldAccessor,methodAccessor);
-  			def(jopxy,accessors);
-  	};
-  	
-  })(o.defineProperties),(function(){
-  	return function(instance,accessors){
-  			
-  	};
-  })()).vldParam({0:"Object"});
-	var observe = ff.observe = function(){};
+		var OI8 = ff.OI8;
+    var OI8Select = ff.OI8Select;
+    var UUID = ff.UUID;
+    var KeyWord = ff.KeyWord;
+    var each = ff.each;
+    var RawType = ff.RawType;
+    var slice = Array.prototype.slice;
+    var fieldAccessor = function(instance,accessors,name,value){
+        if(arguments.length===4){
+            accessors[name].set.call(instance,value);
+        }else{
+            return accessors[name].get.call(instance);
+        }
+    };
+    var methodAccessor = OI8Select(function(instance,accessors,name,args){
+        return accessors[name].apply(instance,args);
+    },function(instance,accessors,name){
+        return accessors[name].apply(instance,slice.call(arguments,3));
+    });
+    var	proxy = ff.proxy = OI8Select((function(def){
+        var JsObjectProxy = function(instance,accessors,fieldAccessor,methodAccessor){
+            this.inst = instance;
+            this.accs = accessors;
+            this.facc = fieldAccessor;
+            this.macc = methodAccessor;
+        };
+        JsObjectProxy.prototype.fieldDesc = function(){
+            var self = this;
+            var desc = {};
+            each(this.inst,function(){
+                var key = this.key;
+                desc[key] = {};
+                if(key in self.accs){
+                    self.accs[key].get&&(desc[key].get=function(){
+                        return this.facc(this.inst,this.accs,key);
+                    });
+                    self.accs[key].set&&(desc[key].set=function(val){
+                        this.facc(this.inst,this.accs,key,val);
+                    });
+                }else{
+                    desc[key].get=function(){
+                        return this.inst[key];
+                    };
+                    desc[key].set=function(val){
+                        this.inst[key] = val;
+                    };
+                }
+            },function(){
+                var key = this.key;
+                if(RawType.Function.has(this.value)){
+                    self.accs[key] = this.value;
+                    self[key] = function(){
+                        return this.macc(this.inst,this.accs,key,arguments);
+                    };
+                    return false;
+                }else{
+                    return true;
+                }
+            });
+            return desc;
+        };
+        return function(instance,accessors){
+            var jopxy = new JsObjectProxy(instance,accessors,fieldAccessor,methodAccessor);
+            return def(jopxy,jopxy.fieldDesc());
+        };
+
+    })(o.defineProperties),OI8&&(function(){
+        w.execScript([
+            "Function parseVB(code)",
+            "\tExecuteGlobal(code)",
+            "End Function"
+        ].join("\r\n"), "VBScript");
+        var buildArgString = function(argCnt){
+            var args = [];
+            for(var i = 0;i<argCnt;i++){
+                args.push("arg"+i);
+            };
+            return args.join(",");
+        };
+        var JsObjectProxy = function(instance,accessors,fieldAccessor,methodAccessor){
+            this.inst = instance;
+            this.accs = accessors;
+            this.facc = fieldAccessor;
+            this.macc = methodAccessor;
+            this.className = ("VBClass"+UUID());
+            this.buffer = [
+                "Class "+this.className,
+                "\tPrivate inst,accs,facc,macc",
+                "\tPublic Default Function VBConstructor(o, a, fc, mc)",
+                "\t\tSet inst = o : set accs = a : set facc = fc : set macc = mc ",
+                "\t\tSet VBConstructor = Me",
+                "\tEnd Function"
+            ];
+        };
+        JsObjectProxy.prototype.fieldBuild = function(){
+            var self = this;
+            each(this.inst,function(){
+                var key = this.key;
+                if(!(key in self.accs)){
+                    self.accs[key] = {
+                        get : function(){
+                            return this[key];
+                        },
+                        set : function(val){
+                            this[key] = val;
+                        }
+                    };
+                }
+                self.accs[key].get&&self.buffer.push(
+                    "\tPublic Property Get " + key + "",
+                    "\tOn Error Resume Next",
+                    "\t\tSet " + key + " = facc(inst,accs,\"" + key + "\")",
+                    "\tIf Err.Number <> 0 Then",
+                    "\t\t" + key + " = facc(inst,accs,\"" + key + "\")",
+                    "\tEnd If",
+                    "\tOn Error Goto 0",
+                    "\tEnd Property"
+                );
+                self.accs[key].set&&self.buffer.push(
+                    "\tPublic Property Let " + key + "(val)",
+                    "\t\tCall facc(inst,accs, \"" + key + "\", val)",
+                    "\tEnd Property",
+                    "\tPublic Property Set " + key + "(val)",
+                    "\t\tCall facc(inst,accs, \"" + key + "\", val)",
+                    "\tEnd Property"
+                );
+            },function(){
+                var key = this.key;
+                if(RawType.Function.has(this.value)){
+                    self.accs[key] = this.value;
+                    var fArgStr = buildArgString(this.value.length);
+                    var aArgStr = fArgStr === ""?"":(","+fArgStr);
+                    self.buffer.push(
+                        "\tPublic Function " + key + "("+fArgStr+")",
+                        "\tOn Error Resume Next",
+                        "\t\tSet " + key + " = macc(inst,accs,\"" + key + "\""+aArgStr+")",
+                        "\tIf Err.Number <> 0 Then",
+                        "\t\t" + key + " = macc(inst,accs,\"" + key + "\""+aArgStr+")",
+                        "\tEnd If",
+                        "\tOn Error Goto 0",
+                        "\tEnd Function"
+                    );
+                    return false;
+                }else{
+                    return true;
+                }
+            });
+            self.accs["constructor"] = {
+                get : function(){
+                    return this["constructor"];
+                }
+            }
+            self.buffer.push(
+                "\tPublic Property Get constructor",
+                "\tOn Error Resume Next",
+                "\t\tSet constructor = facc(inst,accs,\"constructor\")",
+                "\tIf Err.Number <> 0 Then",
+                "\t\tconstructor = facc(inst,accs,\"constructor\")",
+                "\tEnd If",
+                "\tOn Error Goto 0",
+                "\tEnd Property"
+            );
+        };
+        JsObjectProxy.prototype.create = function(){
+            this.fieldBuild();
+            this.buffer.push(
+                "\tPublic Function serialize ()",
+                "\t\tserialize = window.stringify(JSObject)",
+                "\tEnd Function",
+                "End Class"
+            );
+            w.parseVB(this.buffer.join("\r\n"));
+            w.parseVB([
+                "Function " + this.className + "Factory(inst,accs,facc,macc)",
+                "\tDim result",
+                "\tSet result = (New " + this.className + ")(inst,accs,facc,macc)",
+                "\tSet " + this.className + "Factory = result",
+                "End Function"
+            ].join("\r\n"));
+            return w[this.className + "Factory"](this.inst,this.accs,this.facc,this.macc);
+        };
+        return function(instance,accessors){
+            return new JsObjectProxy(instance,accessors,fieldAccessor,methodAccessor).create();
+        };
+    })()).vldParam({0:"Object",1:"Object"});
+
+    /**
+     * event{
+					*		target: object/array
+					*		trigger: key/index
+					*		oldValue:	object[key]/array[index] @before set access
+					*		newValue:	object[key]/array[index] @after set access
+					*		value: object[key]/array[index] @before get access
+					*		type:	set/get
+					*}
+     */
+
+    var obsContext = {};
+
+    var obsObject = ff.obsObject = function(instance){
+        var context = obsContext[instance.hashCode()] = {};
+        var accessors = {};
+        each(instance,function(){
+            var hooks = context[this.key] = {};
+            var accessor = accessors[this.key] = {};
+            hooks.get = {log:function(e){console.log(e);}};
+            accessor.get = (function(key,hooks){
+                return function(){
+                    var obsEvent = {type:'get',trigger:key,target:this,value:this[key]};
+                    each(hooks,function(){
+                        (this.value)(obsEvent);
+                    },function(){
+                    		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+                    });
+                    return this[key];
+                }
+            })(this.key,hooks.get);
+            hooks.set = {log:function(e){console.log(e);}};
+            accessor.set = (function(key,hooks){
+                return function(value){
+                    var obsEvent = {type:'set',trigger:key,target:this,oldValue:this[key],newValue:value};
+                    each(hooks,function(){
+                        (this.value)(obsEvent);
+                    },function(){
+                    		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+                    });
+                    this[key] = value;
+                }
+            })(this.key,hooks.set);
+        },function(){
+            return !RawType.Function.has(this.value);
+        });
+        return proxy(instance,accessors);
+    };
+    
+    var obsArray = ff.obsArray = function(instance){
+    	
+    };
+
+    var observe = ff.observe = function(instance){
+    		if(rawType.Object.has(instance)){
+					obsObject(instance);
+				}else if(rawType.Array.has(instance)){
+					obsArray(instance);
+				}else{
+					throw 'expected Object or Array...';
+				}	
+    };
+    var Association = function(ass){
+    	this.exp = /(\.{0,1}([a-zA-Z0-9_]{1,}))|(\[([0-9]{1,})\])/g;
+    	this.ass = ass;
+    	this.cached = null;
+    };
+    Association.prototype.hasNext = function(){
+    	return this.cached = this.exp.exec(this.ass);
+    };
+    Association.prototype.next = function(){
+    	var path = "";
+    	each(this.cached,function(){
+    		path = this;
+    	},function(){
+    		return this!=="";
+    	});
+    	return path;
+    };
+    Association.prototype.all = function(){
+    	var paths = [];
+    	while(this.hasNext()){
+    		paths.push(this.next());	
+    	}
+    	return paths;
+    };
+    var listen = ff.listen = function(instance,ass,type,func){
+    		var cursor = instance;
+    		var assn = new Association(ass);
+    		var paths = assn.all();
+    		for(var i = 0;i<paths.length-1;i++){
+    			cursor = cursor[paths[i]];	
+    		}
+    		obsContext[cursor.hashCode()][paths[paths.length-1]][type][func.hashCode()] = func;
+    };
 })(window,document,flyfire,Object);
