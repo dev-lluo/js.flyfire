@@ -241,75 +241,68 @@
 					*		type:	add/del/srt
 					*}
      */
-    var mockArrayMethods = ["pop","push","reverse","shift","sort","splice","unshift"];
+    //var mockArrayMethods = ["pop","push","reverse","shift","sort","splice","unshift"];
     var mockArray = ff.mockArray = function(instance){
-    	var context = mockContext[instance.hashCode()] = {};
-    	context.pop = {log:function(e){console.log(e);}}
+    	var context = mockContext[instance.hashCode()] = {add:{log:function(e){console.log(e);}},del:{log:function(e){console.log(e);}},srt:{log:function(e){console.log(e);}}};
     	instance.pop = instance.pop.after(function(jp){
     		var mockEvent = {type:"del",target:this,trigger:this.length,items:[jp.result]};
-    		each(context.pop,function(){
+    		each(context.del,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     	});
-    	context.push = {log:function(e){console.log(e);}};
     	instance.push = instance.push.before(function(jp){
     		var mockEvent = {type:"add",target:this,trigger:this.length,items:jp.args};
-    		each(context.push,function(){
+    		each(context.add,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     	});
-    	context.reverse = {log:function(e){console.log(e);}}
     	instance.reverse = instance.reverse.after(function(jp){
     		var mockEvent = {type:"srt",target:this,trigger:0,items:this};
-    		each(context.reverse,function(){
+    		each(context.srt,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     	});
-    	context.shift = {log:function(e){console.log(e);}}
     	instance.shift = instance.shift.after(function(jp){
     		var mockEvent = {type:"del",target:this,trigger:0,items:[jp.result]};
-    		each(context.shift,function(){
+    		each(context.del,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     	});
-    	context.sort = {log:function(e){console.log(e);}}
     	instance.sort = instance.sort.after(function(jp){
     		var mockEvent = {type:"srt",target:this,trigger:0,items:this};
-    		each(context.sort,function(){
+    		each(context.srt,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     	});
-    	context.splice = {log:function(e){console.log(e);}}
     	instance.splice = instance.splice.around(function(jp){
     		var mockEventAdd = {type:"add",target:this,trigger:jp.args[0],items:slice.call(jp.args,2)};
     		var result = jp.invoke();
     		var mockEventDel = {type:"del",target:this,trigger:jp.args[0],items:result};
-    		each(context.splice,function(){
+    		each(context.del,function(){
                 (this.value)(mockEventDel);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
-    		each(context.splice,function(){
+    		each(context.add,function(){
                 (this.value)(mockEventAdd);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
             });
     		return result;
     	});
-    	context.unshift = {log:function(e){console.log(e);}};
     	instance.unshift = instance.unshift.before(function(jp){
     		var mockEvent = {type:"add",target:this,trigger:0,items:jp.args};
-    		each(context.unshift,function(){
+    		each(context.add,function(){
                 (this.value)(mockEvent);
             },function(){
             	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
