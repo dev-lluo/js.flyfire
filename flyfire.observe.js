@@ -2,7 +2,6 @@
 		var OI8 = ff.OI8;
     var OI8Select = ff.OI8Select;
     var UUID = ff.UUID;
-    var KeyWord = ff.KeyWord;
     var each = ff.each;
     var RawType = ff.RawType;
     var slice = Array.prototype.slice;
@@ -211,7 +210,7 @@
                     each(hooks,function(){
                         (this.value)(mockEvent);
                     },function(){
-                    		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+                    		return 	RawType.Function.has(this.value);
                     });
                     return this[key];
                 }
@@ -223,7 +222,7 @@
                     each(hooks,function(){
                         (this.value)(mockEvent);
                     },function(){
-                    		return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+                    		return 	RawType.Function.has(this.value);
                     });
                     this[key] = value;
                 }
@@ -249,7 +248,7 @@
     		each(context.del,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	instance.push = instance.push.before(function(jp){
@@ -257,7 +256,7 @@
     		each(context.add,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	instance.reverse = instance.reverse.after(function(jp){
@@ -265,7 +264,7 @@
     		each(context.srt,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	instance.shift = instance.shift.after(function(jp){
@@ -273,7 +272,7 @@
     		each(context.del,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	instance.sort = instance.sort.after(function(jp){
@@ -281,7 +280,7 @@
     		each(context.srt,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	instance.splice = instance.splice.around(function(jp){
@@ -291,12 +290,12 @@
     		each(context.del,function(){
                 (this.value)(mockEventDel);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     		each(context.add,function(){
                 (this.value)(mockEventAdd);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     		return result;
     	});
@@ -305,7 +304,7 @@
     		each(context.add,function(){
                 (this.value)(mockEvent);
             },function(){
-            	return 	RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            	return 	RawType.Function.has(this.value);
             });
     	});
     	return instance;
@@ -320,11 +319,12 @@
 					throw 'expected Object or Array...';
 				}	
     };
-    var Association = function(ass){
+    var Association = ff.Association = function(ass){
     	this.exp = /(\.{0,1}([a-zA-Z0-9_]{1,}))|(\[([0-9]{1,})\])/g;
     	this.ass = ass||"";
     	this.cached = null;
-    };
+    	this.paths = null;
+    }.asCtor("Association");
     Association.prototype.hasNext = function(){
     	return this.cached = this.exp.exec(this.ass);
     };
@@ -338,11 +338,37 @@
     	return path;
     };
     Association.prototype.all = function(){
-    	var paths = [];
-    	while(this.hasNext()){
-    		paths.push(this.next());	
+    	if(this.paths){
+    		return this.paths
+    	}else{
+	    	var paths = [];
+	    	while(this.hasNext()){
+	    		paths.push(this.next());	
+	    	}
+	    	return this.paths = paths;
     	}
-    	return paths;
+    };
+    Association.prototype.valueOf = function(instance){
+    	var cursor = instance;
+    	var paths = this.all();
+    	for(var i = 0;i<paths.length-1;i++){
+			cursor = cursor[paths[i]];	
+			if(!cursor)return cursor;
+		}
+    	return paths.length?cursor[paths[paths.length-1]]:cursor;
+    };
+    Association.prototype.exists = function(instance){
+    	var cursor = instance;
+    	var paths = this.all();
+    	for(var i = 0;i<paths.length-1;i++){
+    		if(paths[i] in cursor){
+    			cursor = cursor[paths[i]];
+    		}else{
+    			return false;
+    		}
+    		if(!cursor)return false;
+		}
+    	return paths[paths.length-1] in cursor;
     };
     var observe = ff.observe = function(instance,type,func,ass){
     		var cursor = instance;

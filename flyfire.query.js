@@ -1,4 +1,5 @@
 ;(function(w,d,ff,s){
+	var OI8 = ff.OI8
     var OI8Select = ff.OI8Select;
     var each = ff.each;
     var query = ff.query = function(selector){
@@ -36,7 +37,7 @@
     var off = query.off = OI8Select(function(dom,type,func,useCapture){
         dom.removeEventListener(eventHook[type]||type, func,useCapture||false);
     },function(dom,type,func){
-        var callback = obj[func.hashCode()];
+        var callback = dom[func.hashCode()];
         dom.detachEvent("on" + (eventHook[type]||type), callback);
     }).vldParam({1:"String",2:"Function"});
     query.dm.off = function(type,func,useCapture){
@@ -45,34 +46,45 @@
         });
         return this;
     };
-    var isEmptyExp = /^\s{0,}$/g;
-    isEmptyExp.test = isEmptyExp.test.after(function(){
-        this.restore();
-    });
-    var getText = query.getText = function(dom){
+    var isEmptyExp = (function(exp){
+    	exp.test = exp.test.after(function(){
+            this.restore();
+        });
+    	return exp;
+    })(/^\s{0,}$/g);
+    var getText = query.getText = OI8Select(function(dom){
         var results = [];
         each(dom.childNodes,function(){
-            if(this.nodeType===3){
-                if(!isEmptyExp.test(this.nodeValue))
-                    results.push(this);
-            };
-        });
+        	 results.push(this.nodeValue);
+        },function(){return this.nodeType===3&&!isEmptyExp.test(this.nodeValue)});
         return results.join('');
-    };
+    },(function(){
+    	var extraTag = /^(SCRIPT)$/ig;
+    	extraTag.test = extraTag.test.after(function(){
+			this.restore();	
+		});
+    	return function(dom){
+    		if(extraTag.test(dom.nodeName)){
+    			return dom.innerHTML;
+    		}else{
+    			var results = [];
+    	        each(dom.childNodes,function(){
+    	        	 results.push(this.nodeValue);
+    	        },function(){return this.nodeType===3&&!isEmptyExp.test(this.nodeValue)});
+    	        return results.join('');
+    		}
+    	};
+    })());
     var setText = query.setText = function(dom,text){
         var did = false;
         each(dom.childNodes,function(){
-            if(this.nodeType===3){
-                if(!isEmptyExp.test(this.nodeValue)){
-                    if(did){
-                        this.nodeValue = "";
-                    }else{
-                        this.nodeValue = text;
-                        did = true;
-                    }
-                }
-            };
-        });
+            if(did){
+               this.nodeValue = "";
+            }else{
+               this.nodeValue = text;
+               did = true;
+            }
+        },function(){return this.nodeType===3&&!isEmptyExp.test(this.nodeValue)});
     };
     query.dm.text = function(text){
         if(arguments.length===1){
@@ -110,6 +122,9 @@
     };
     var attrHook = {
     };
+    var removeAttr = query.removeAttr = function(dom,attr){
+    	return dom.removeAttribute(attrHook[attr]||attr);
+    };
     var getAttr = query.getAttr = function(dom,attr){
         return dom.getAttribute(attrHook[attr]||attr);
     };
@@ -146,13 +161,55 @@
         "length" in dom ?this.doms.push.apply(this.doms,dom):this.doms.push.call(this.doms,dom);
         return this;
     }
-    var getChild = query.getChild = function(dom){
+    var wrapMap = {
+         option: [ 1, "<select multiple='multiple'>", "</select>" ],
+         legend: [ 1, "<fieldset>", "</fieldset>" ],
+         thead: [ 1, "<table>", "</table>" ],
+         tr: [ 2, "<table><tbody>", "</tbody></table>" ],
+         td: [ 3, "<table><tbody><tr>", "</tr></tbody></table>" ],
+         col: [ 2, "<table><tbody></tbody><colgroup>", "</colgroup></table>" ],
+         area: [ 1, "<map>", "</map>" ],
+         _default: [ 0, "", "" ]
+    	},
+    	rleadingWhitespace = (function(exp){
+    		exp.test = exp.test.after(function(jp){
+    			this.restore();
+    		});
+    		exp.exec = exp.exec.after(function(jp){
+    			this.restore();
+    		});
+    		return exp;
+    	})(/^\s+/),
+    	rxhtmlTag = /<(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>/gi,
+    	rtagName = /<([\w:]+)/,
+    	rhtml = /<|&#?\w+;/;
+    var parseHTML = query.parseHTML = function(elem){
+    	 if ( rhtml.test( elem ) ) {
+             var safe =  document.createDocumentFragment();
+             var div = document.createElement("div");
+             safe.appendChild( div );
+             elem = elem.replace(rxhtmlTag, "<$1></$2>");
+             tag = ( rtagName.exec( elem ) || ["", ""] )[1].toLowerCase();
+             wrap = wrapMap[ tag ] || wrapMap._default;
+             depth = wrap[0];
+             div.innerHTML = wrap[1] + elem + wrap[2];
+             while ( depth-- ) {
+                 div = div.lastChild;
+             }
+             if ( (!OI8) && rleadingWhitespace.test( elem ) ) {
+            	 div.insertBefore( document.createTextNode( rleadingWhitespace.exec(elem)[0] ), div.firstChild );
+             }
+             elem = div.childNodes;
+         }else{
+        	 elem = document.createTextNode( elem );
+         }
+    	 return elem;
+    };
+    var getChild = query.getChild = function(dom,hasText){
         var child = [];
         each(dom.childNodes,function(){
-            if(this.nodeType===1){
-                child.push(this);
-            }
-        });
+            child.push(this);
+        },function(){return this.nodeType===1||(hasText&&this.nodeType===3);});
         return child;
     };
     query.dm.child = function(){
@@ -197,6 +254,16 @@
         each(this.doms,function(){
             replace(this,dom);
         });
+    };
+    var cloneNode = query.cloneNode = function(dom,dp){
+    	return dom.cloneNode(dp);
+    };
+    query.dm.clone = function(dp){
+    	var clone = new query.dm.init([]);
+    	each(this.doms,function(){
+    		clone.push(cloneNode(this,dp));
+    	});
+    	return clone;
     };
 })(window,document,flyfire,
     /*!

@@ -1,4 +1,4 @@
-<html>
+<html charset="UTF-8">
 	<head>
 		<style>
 			.redbd{
@@ -7,14 +7,29 @@
 		</style>
 	</head>
 	<body>
-		<script type="text/flyfire-model">
-			{{text}}
+	123
+		<script type="text/flyfire-view" id="simple">
+			<p>姓名:{{name}}</p>
+			<p>年龄:{{age}}</p>
+			<ul>
+				<li list="{{bag}}">姓名:{{item}}</li>		
+			</ul>
+			<table>
+				<tr><td>姓名</td><td>年龄</td></tr>
+				<tr list="{{friends}}"><td>{{item.name}}</td><td>{{item.age}}</td></tr>
+			</table>
 		</script>
 	</body>
-
+	<!-- 
+		1.一个View一个data；
+		2.一个节点对应一个Tag
+		3.一个Tag可以有多个子Tag
+	 -->
 	<script type="text/javascript" src="flyfire.core.js"></script>
 	<script type="text/javascript" src="flyfire.query.js"></script>
 	<script type="text/javascript" src="flyfire.observe.js"></script>
+	<script type="text/javascript" src="flyfire.view.js"></script>
 	<script type="text/javascript">
+	flyfire.view({view:"#simple",render:"body",data:{name:"xhh",age:23,bag:["香水","visa"],friends:[{name:"me"},{name:"zy"},{name:"xh"}]}});
 	</script>
 </html>

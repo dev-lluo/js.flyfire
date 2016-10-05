@@ -4,7 +4,9 @@
     var OI8Select = ff.OI8Select = function(a,b){
         return OI8?b:a;
     };
-    var KeyWord = ff.KeyWord = /^(hashCode|derivedFrom|getType)$/;
+    var convert = ff.convert = function(result){
+		return Function("return "+result)();
+	};
     var I64BIT_TABLE =
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     var UUID = ff.UUID = function(){
@@ -118,14 +120,81 @@
     String.prototype.contains = function(str){
         return this.indexOf(str)>-1;
     };
+    String.prototype.split = OI8Select(String.prototype.split,(function(){
+    	var compliantExecNpcg = typeof (/()??/).exec('')[1] === 'undefined';
+    	var maxSafe32BitInt = Math.pow(2, 32) - 1;
+    	var strSplit = String.prototype.split;
+    	var strSlice = String.prototype.slice;
+    	var pushCall = Array.prototype.push;
+    	var arraySlice  = Array.prototype.slice;
+    	return function (separator, limit) {
+    		var string = String(this);
+    		if (typeof separator === 'undefined' && limit === 0) {
+    			return [];
+    		}
+    		if (Object.prototype.toString.call(separator)!=="[object RegExp]") {
+    			return strSplit.apply(this, [separator, limit]);
+    		}
+    		var output = [];
+    		var flags = (separator.ignoreCase ? 'i' : '') +
+    		(separator.multiline ? 'm' : '') +
+    		(separator.unicode ? 'u' : '') + 
+    		(separator.sticky ? 'y' : ''), 
+    		lastLastIndex = 0,
+    		separator2, match, lastIndex, lastLength;
+    		var separatorCopy = new RegExp(separator.source, flags + 'g');
+    		if (!compliantExecNpcg) {
+    			separator2 = new RegExp('^' + separatorCopy.source + '$(?!\\s)', flags);
+    		}
+    		var splitLimit = typeof limit === 'undefined' ? maxSafe32BitInt : parseInt(limit);
+    		match = separatorCopy.exec(string);
+    		while (match) {
+    			lastIndex = match.index + match[0].length;
+    			if (lastIndex > lastLastIndex) {
+    				pushCall.call(output, strSlice.apply(string, [lastLastIndex, match.index]));
+    				if (!compliantExecNpcg && match.length > 1) {
+    					match[0].replace(separator2, function () {
+    						for (var i = 1; i < arguments.length - 2; i++) {
+    							if (typeof arguments[i] === 'undefined') {
+    								match[i] = void 0;
+    							}
+    						}
+    					});
+    				}
+    				if (match.length > 1 && match.index < string.length) {
+    					pushCall.apply(output, arraySlice.apply(match, [1]));
+    				}
+    				lastLength = match[0].length;
+    				lastLastIndex = lastIndex;
+    				if (output.length >= splitLimit) {
+    					break;
+    				}
+    			}
+    			if (separatorCopy.lastIndex === match.index) {
+    				separatorCopy.lastIndex++; 
+    			}
+    			match = separatorCopy.exec(string);
+    		}
+    		if (lastLastIndex === string.length) {
+    			if (lastLength || !separatorCopy.test('')) {
+    				pushCall.call(output, '');
+    			}
+    		} else {
+    			pushCall.call(output, strSlice.apply(string, [lastLastIndex]));
+    		}
+    		return output.length > splitLimit ? arraySlice(output, 0, splitLimit) : output;
+    	};
+    }()));
     RegExp.prototype.restore = OI8Select(function(){
 				this.lastIndex = 0;
-		},function(){
-				while(this.exec()!=null);//IE8ÏÂ²»ÄÜÊ¹ÓÃthis.lastIndex¿ªÊ¼ÖØÐÂ¼ìË÷ÐÂ×Ö·û´®
-		});
-		Function.prototype.hashCode = function(){
-				return this.hash||(this.hash = String(this).replace(/([\r\n])\s*/g,"").hashCode());
+	},(function(exec){
+		return function(){
+			while(exec.call(this)!=null);//IE8ï¿½Â²ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½this.lastIndexï¿½ï¿½Ê¼ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
 		};
+	})(RegExp.prototype.exec));
+	Function.prototype.hashCode = function(){
+		return this.hash||(this.hash = String(this).replace(/([\r\n])\s*/g,"").hashCode());
+	};
     Function.prototype.before = function(func){
         var __self = this;
         return function(){
@@ -198,6 +267,32 @@
             return ret;
         };
     };
+    Function.prototype.overload = function(){
+    	var ovd = this.ovd?cloneObject(this.ovd):{defunc:this};
+    	var cursor = ovd;
+    	for(var i = 0;i < arguments.length-1;i++){
+    		cursor=cursor[arguments[i]] = {};
+    	}
+    	cursor.func = arguments[arguments.length-1];
+    	var func = function(){
+    		var cursor = ovd;
+    		var defunc = ovd.defunc;
+    		for(var i = 0;i < arguments.length;i++){
+    			if(!(cursor = cursor[RawType(arguments[i])])){
+    				return defunc.apply(this,arguments);
+    			}
+    		}
+    		return cursor.func?cursor.func.apply(this,arguments):defunc.apply(this,arguments);
+    	};
+    	func.ovd = ovd;
+    	return func;
+    };
+    var KeyWord = ff.KeyWord = (function(kw){
+    	kw.test = kw.test.after(function(jp){
+    		this.restore();
+    	});
+    	return kw;
+    })(/^(hashCode|derivedFrom|getType)$/);
     var O2Type = w.Object.prototype.toString.after(function(jp){
         jp.result = RawType.valueOf(jp.result);
     });
@@ -258,7 +353,7 @@
                 }
             }else{
                 for(var key in iterable){
-                    if(filter&&!filter.apply({key:key,value:iterable[key]},[key,iterable[key]])){continue;}
+                    if(KeyWord.test(this.key)||(filter&&!filter.apply({key:key,value:iterable[key]},[key,iterable[key]]))){continue;}
                     else{func.apply({key:key,value:iterable[key]},[key,iterable[key]]);}
                 }
             }
@@ -321,7 +416,7 @@
                     target[i] = cloneObject(arr[i],context);
                 }
             }else{
-                target[i] = obj[i];
+                target[i] = arr[i];
             }
         }
         return target;
@@ -402,5 +497,56 @@
     };
     var assertArray = ff.assertArray = function(obj,e){
         assertType(obj,RawType.Array,false,e);
+    };
+    var ajax = ff.ajax = function(config){
+    	var cfg = extend({
+    		type:"html",
+    		async:true,
+    		method:"get"
+    	},config);
+    	assertValid(cfg.url);
+    	assertString(cfg.url);
+    	assertFunction(cfg.callback);
+    	assertFunction(cfg.beforeSend);
+    	assertFunction(cfg.error);
+    	var xhttp = new XMLHttpRequest();
+    	xhttp.onreadystatechange = function(){
+			if (xhttp.readyState === 4){
+				if(xhttp.status === 200){
+					cfg.callback&&cfg.callback();
+				}else{
+					cfg.error&&cfg.error();
+				}
+			}
+		}
+    	xhttp.open.before(function(jp){
+    		cfg.beforeSend&&cfg.beforeSend.apply(xhttp,jp.args);
+    	});
+    	xhttp.open(cfg.method,cfg.url,cfg.async);
+    	if(cfg.data){
+    		var queryString = ff.ajax.buildQueryString(cfg.data).join("&");
+    		xhttp.send(queryString);
+    	}else{
+    		xhttp.send();
+    	}
+    };
+    ff.ajax.buildQueryString = function(instance,name){
+    	var queryStringArr = [];
+    	if(RawType.Object.has(instance)){
+    		each(instance,function(){
+    			Array.prototype.push.apply(queryStringArr,ff.ajax.buildQueryString(this.value,name?(name+"."+this.key):this.key));
+    		},function(){
+            	return 	!RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	}else if(RawType.Array.has(instance)){
+    		each(instance,function(i){
+    			Array.prototype.push.apply(queryStringArr,ff.ajax.buildQueryString(this,name?(name+"["+i+"]"):("["+i+"]")));
+    		},function(){
+            	return 	!RawType.Function.has(this.value)&&!KeyWord.test(this.key);
+            });
+    	}else{
+    		queryStringArr.push(name+"="+instance);
+    	}
+    	return queryStringArr;
     };
 })(window,document);
