@@ -370,6 +370,14 @@
 		}
     	return paths[paths.length-1] in cursor;
     };
+    Association.prototype.child = function(){
+    	var child = new Association();
+    	child.paths = this.all().slice(1);
+    	return child;
+    };
+    Association.prototype.top = function(){
+    	return this.all()[0];
+    };
     var observe = ff.observe = function(instance,type,func,ass){
     		var cursor = instance;
     		var assn = new Association(ass);

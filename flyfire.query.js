@@ -201,7 +201,7 @@
              }
              elem = div.childNodes;
          }else{
-        	 elem = document.createTextNode( elem );
+        	 elem = [document.createTextNode( elem )];
          }
     	 return elem;
     };

@@ -1,4 +1,4 @@
-<html charset="UTF-8">
+<html>
 	<head>
 		<style>
 			.redbd{
@@ -7,15 +7,15 @@
 		</style>
 	</head>
 	<body>
-	123
 		<script type="text/flyfire-view" id="simple">
-			<p>姓名:{{name}}</p>
-			<p>年龄:{{age}}</p>
+			<p>name:{{name}}</p>
+			<p>age:{{age}}</p>
 			<ul>
-				<li list="{{bag}}">姓名:{{item}}</li>		
+				<li>bag</li>
+				<li list="{{bag}}">{{item}}</li>		
 			</ul>
 			<table>
-				<tr><td>姓名</td><td>年龄</td></tr>
+				<tr><td>name</td><td>age</td></tr>
 				<tr list="{{friends}}"><td>{{item.name}}</td><td>{{item.age}}</td></tr>
 			</table>
 		</script>
@@ -28,8 +28,8 @@
 	<script type="text/javascript" src="flyfire.core.js"></script>
 	<script type="text/javascript" src="flyfire.query.js"></script>
 	<script type="text/javascript" src="flyfire.observe.js"></script>
-	<script type="text/javascript" src="flyfire.view.js"></script>
+	<script type="text/javascript" src="flyfire.template.js"></script>
 	<script type="text/javascript">
-	flyfire.view({view:"#simple",render:"body",data:{name:"xhh",age:23,bag:["香水","visa"],friends:[{name:"me"},{name:"zy"},{name:"xh"}]}});
+	flyfire.tmpl({tmpl:"#simple",render:"body",data:{name:"xhh",age:23,bag:["chanel","visa"],friends:[{name:"me",age:21},{name:"zy"},{name:"xh"}]}});
 	</script>
 </html>

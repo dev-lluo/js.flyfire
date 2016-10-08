@@ -8,11 +8,41 @@
 	var Association = ff.Association;
 	var Syntax = function(tokenStr){
 		var tokens = tokenStr.split(Syntax.token);
+		var assnIdxs = []; 
 		each(tokens,function(i){
 			var ass = Syntax.ass.exec(this)[1];
 			tokens[i] = new Association(ass);
+			assnIdxs.push(i);
 		},function(){return Syntax.ass.test(this);});
 		this.tokens = tokens;
+		this.assnIdxs = tokens;
+	};
+	Syntax.prototype.prepared = function(){
+		var buffer = [];
+		each(this.tokens,function(){
+			buffer.push(this);
+		});
+		return {
+			assnSize:this.assnIdxs.length,
+			hasAssn:function(){return this.assnSize>this.cursor;},
+			cursor:0,
+			atLocal:false,
+			buffer:buffer,
+			toString : function(){
+				return this.buffer.join("");
+			}
+		};
+	};
+	Syntax.prototype.resolve = function(ctx,global,local){
+		var assn = ctx.buffer[this.assnIdxs[ctx.cursor]];
+		ctx.asLocal = assn.exists(local);
+		if(ctx.atLocal){
+			ctx.buffer[this.assnIdxs[ctx.cursor]] = this.valueOf(local);
+		}else{
+			ctx.buffer[this.assnIdxs[ctx.cursor]] = this.valueOf(global);
+		}
+		ctx.cursor++;
+		return assn;
 	};
 	Syntax.prototype.exec = function(global,local){
 		var buffer = [];
@@ -72,6 +102,9 @@
 		each(local.list,function(){
 			var clone = query.cloneNode(self.dom);
 			local.item = this;
+			each(this.hooks,function(){
+				query.setAttr(clone,this.key,this.value.exec(context.global,local));
+			},function(){return !RawType.Function.has(this.value);});
 			each(self.items,function(){
 				this.exec({global:context.global,local:local},clone);
 			});

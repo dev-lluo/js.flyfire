@@ -346,14 +346,14 @@
         if(iterable){
             if("length" in iterable){
                 for(var i = 0;i<iterable.length;i++){
-                		if(iterable[i]){
+                	if(iterable[i]!==undefined&&iterable[i]!==null){
 	                    if(filter&&!filter.apply(iterable[i],[i,iterable[i]])){continue;}
 	                    else{func.apply(iterable[i],[i,iterable[i]]);}
                     }
                 }
             }else{
                 for(var key in iterable){
-                    if(KeyWord.test(this.key)||(filter&&!filter.apply({key:key,value:iterable[key]},[key,iterable[key]]))){continue;}
+                    if(KeyWord.test(key)||(filter&&!filter.apply({key:key,value:iterable[key]},[key,iterable[key]]))){continue;}
                     else{func.apply({key:key,value:iterable[key]},[key,iterable[key]]);}
                 }
             }
@@ -438,22 +438,10 @@
         for(var i = arguments.length;i--;){
             for(var name in arguments[i]){
                 if(!arguments[i].hasOwnProperty(name)){continue;}
-                var type = RawType(arguments[i][name]);
-                if(type === RawType.Object){
-                    if(name in target){
-                        target[name] = extend(arguments[i][name],target[name]);
-                    }else{
-                        target[name] = cloneObject(arguments[i][name]);
-                    }
-                }else if(type === RawType.Array){
-                    if(name in target){
-                        continue;
-                    }else{
-                        target[name] = 	cloneArray(arguments[i][name]);
-                    }
+                if(name in target){
+                	continue;
                 }else{
-                    if(name in target){continue;}
-                    target[name] = 	arguments[i][name];
+                	target[name] = 	arguments[i][name];
                 }
             }
         }
