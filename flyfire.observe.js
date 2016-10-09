@@ -19,38 +19,38 @@
     });
     var	proxy = ff.proxy = OI8Select((function(def){
         var JsObjectProxy = function(instance,accessors,fieldAccessor,methodAccessor){
-            this.inst = instance;
-            this.accs = accessors;
-            this.facc = fieldAccessor;
-            this.macc = methodAccessor;
+            this.__inst__ = instance;
+            this.__accs__ = accessors;
+            this.__facc__ = fieldAccessor;
+            this.__macc__ = methodAccessor;
         };
         JsObjectProxy.prototype.fieldDesc = function(){
             var self = this;
             var desc = {};
-            each(this.inst,function(){
+            each(this.__inst__,function(){
                 var key = this.key;
                 desc[key] = {};
-                if(key in self.accs){
-                    self.accs[key].get&&(desc[key].get=function(){
-                        return this.facc(this.inst,this.accs,key);
+                if(key in self.__accs__){
+                    self.__accs__[key].get&&(desc[key].get=function(){
+                        return this.__facc__(this.__inst__,this.__accs__,key);
                     });
-                    self.accs[key].set&&(desc[key].set=function(val){
-                        this.facc(this.inst,this.accs,key,val);
+                    self.__accs__[key].set&&(desc[key].set=function(val){
+                        this.__facc__(this.__inst__,this.__accs__,key,val);
                     });
                 }else{
                     desc[key].get=function(){
-                        return this.inst[key];
+                        return this.__inst__[key];
                     };
                     desc[key].set=function(val){
-                        this.inst[key] = val;
+                        this.__inst__[key] = val;
                     };
                 }
             },function(){
                 var key = this.key;
                 if(RawType.Function.has(this.value)){
-                    self.accs[key] = this.value;
+                    self.__accs__[key] = this.value;
                     self[key] = function(){
-                        return this.macc(this.inst,this.accs,key,arguments);
+                        return this.__macc__(this.__inst__,this.__accs__,key,arguments);
                     };
                     return false;
                 }else{
@@ -194,10 +194,10 @@
 					*		type:	set/get
 					*}
      */
-
+		var mockInstance = {};
     var mockContext = {};
 
-    var mockObject = ff.mockObject = function(instance){
+    var mockObject = function(instance){
         var context = mockContext[instance.hashCode()] = {};
         var accessors = {};
         each(instance,function(){
@@ -230,7 +230,13 @@
         },function(){
             return !RawType.Function.has(this.value);
         });
-        return proxy(instance,accessors);
+        var $pxy = mockInstance[instance.hashCode()] = proxy(instance,accessors);
+        each($pxy,function(){
+        	$pxy[this.key] = mock(this.value);
+        },function(){
+            return !RawType.Function.has(this.value);
+        });
+        return $pxy;
     };
     /**
      * event{
@@ -241,8 +247,14 @@
 					*}
      */
     //var mockArrayMethods = ["pop","push","reverse","shift","sort","splice","unshift"];
-    var mockArray = ff.mockArray = function(instance){
-    	var context = mockContext[instance.hashCode()] = {add:{log:function(e){console.log(e);}},del:{log:function(e){console.log(e);}},srt:{log:function(e){console.log(e);}}};
+    var mockArray = function(instance){
+    	var context = mockContext[instance.hashCode()] = {
+    			add:{log:function(e){console.log(e);}},
+    			del:{log:function(e){console.log(e);}},
+    			srt:{log:function(e){console.log(e);}},
+    			get:{log:function(e){console.log(e);}},
+					set:{log:function(e){console.log(e);}},
+    	};
     	instance.pop = instance.pop.after(function(jp){
     		var mockEvent = {type:"del",target:this,trigger:this.length,items:[jp.result]};
     		each(context.del,function(){
@@ -307,17 +319,43 @@
             	return 	RawType.Function.has(this.value);
             });
     	});
-    	return instance;
+    	instance.get = instance.get.around(function(jp){
+    		var result = jp.invoke();
+    		var mockEvent = {type:"get",target:this,trigger:jp.args[0],value:result};
+    		each(context.get,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value);
+            });
+        return result;
+    	});
+    	instance.set = instance.set.after(function(jp){
+    		var mockEvent = {type:"set",target:this,trigger:jp.args[0],oldValue:this[jp.args[0]],newValue:jp.args[1]};
+    		each(context.set,function(){
+                (this.value)(mockEvent);
+            },function(){
+            	return 	RawType.Function.has(this.value);
+            });
+    	});
+    	var $pxy = mockInstance[instance.hashCode()] = instance;
+    	each($pxy,function(i){
+    		$pxy[i] = mock(this);
+    	});
+    	return $pxy;
     };
 
     var mock = ff.mock = function(instance){
-    		if(RawType.Object.has(instance)){
+    	if((instance&&instance.hashCode()) in mockInstance){
+    		return mockInstance[instance.hashCode()];
+			}else{
+				if(RawType.Object.has(instance)){
 					return mockObject(instance);
 				}else if(RawType.Array.has(instance)){
 					return mockArray(instance);
 				}else{
-					throw 'expected Object or Array...';
+					return instance;
 				}	
+			}
     };
     var Association = ff.Association = function(ass){
     	this.exp = /(\.{0,1}([a-zA-Z0-9_]{1,}))|(\[([0-9]{1,})\])/g;
@@ -355,32 +393,15 @@
 			cursor = cursor[paths[i]];	
 			if(!cursor)return cursor;
 		}
-    	return paths.length?cursor[paths[paths.length-1]]:cursor;
+    	return paths.length&&cursor?cursor[paths[paths.length-1]]:cursor;
     };
     Association.prototype.exists = function(instance){
-    	var cursor = instance;
     	var paths = this.all();
-    	for(var i = 0;i<paths.length-1;i++){
-    		if(paths[i] in cursor){
-    			cursor = cursor[paths[i]];
-    		}else{
-    			return false;
-    		}
-    		if(!cursor)return false;
-		}
-    	return paths[paths.length-1] in cursor;
-    };
-    Association.prototype.child = function(){
-    	var child = new Association();
-    	child.paths = this.all().slice(1);
-    	return child;
-    };
-    Association.prototype.top = function(){
-    	return this.all()[0];
+    	return paths[0] in instance;
     };
     var observe = ff.observe = function(instance,type,func,ass){
     		var cursor = instance;
-    		var assn = new Association(ass);
+    		var assn = RawType.Association.has(ass)?ass:new Association(ass);
     		var paths = assn.all();
     		for(var i = 0;i<paths.length-1;i++){
     			cursor = cursor[paths[i]];	

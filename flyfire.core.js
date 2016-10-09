@@ -44,7 +44,7 @@
         return this.hash||(this.hash = String(this).hashCode());
     };
     Object.prototype.hashCode = function(){
-        if(this.hash){
+        if('hash' in this){
             return this.hash;
         }else{
             var hash = [];
@@ -96,6 +96,13 @@
             hash.push(UUID());
             return this.hash = hash.join("").hashCode();
         }
+    };
+    Array.prototype.get = function(index){
+    	return this[index];
+    };
+    Array.prototype.set = function(index,value){
+    	this[index] = value;
+    	return this.length;
     };
     String.HashTable = {};
     String.prototype.hashCode = function(){
@@ -292,7 +299,7 @@
     		this.restore();
     	});
     	return kw;
-    })(/^(hashCode|derivedFrom|getType)$/);
+    })(/^((hashCode|derivedFrom|getType)|__[a-zA-Z0-9]{1,}__)$/);
     var O2Type = w.Object.prototype.toString.after(function(jp){
         jp.result = RawType.valueOf(jp.result);
     });

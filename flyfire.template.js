@@ -4,6 +4,7 @@
 	var each = ff.each;
 	var query = ff.query;
 	var convert = ff.convert;
+	var mock = ff.mock;
 	var observe = ff.observe;
 	var Association = ff.Association;
 	var TemplateCache = {};
@@ -50,6 +51,9 @@
 					},
 					runAt:function(instance){
 						this.owner.buffer[this.owner.owner.assnPnt[index]] = this.assn.valueOf(instance);
+					},
+					flush:function(value){
+						this.owner.buffer[this.owner.owner.assnPnt[index]] = value;
 					}
 				};
 			},
@@ -130,21 +134,13 @@
 		while(runner.hasAssn()){
 			var current = runner.current();
 			if(current.exists(local)){
-				current.runAt(local);
-//				observe(local[current.top()],"set",(function(current,local){
-//					return function(e){
-//						current.runAt(local);
-//						clone.nodeValue = runner.result();
-//					};
-//				})(current,local),current.child());
+				current.runAt(local);
 			}else{
 				current.runAt(global);
-//				observe(global,"set",(function(current,global){
-//					return function(e){
-//						current.runAt(global);
-//						clone.nodeValue = runner.result();
-//					};
-//				})(current,global),current);
+				observe(global,'set',function(e){
+					current.flush(e.newValue);
+					clone.nodeValue = runner.result();
+				},current.assn);
 			}
 		}
 		clone.nodeValue = runner.result();
@@ -173,20 +169,11 @@
 				var current = runner.current();
 				if(current.exists(local)){
 					current.runAt(local);
-//					observe(local[current.top()],"set",(function(current,local,attr){
-//						return function(e){
-//							current.runAt(local);
-//							query.setAttr(clone,attr,runner.result());
-//						};
-//					})(current,local,this.key),current.child());
 				}else{
 					current.runAt(global);
-//					observe(global,"set",(function(current,global,attr){
-//						return function(e){
-//							current.runAt(global);
-//							query.setAttr(clone,attr,runner.result());
-//						};
-//					})(current,global,this.key),current);
+					observe(global,'set',function(e){
+						current.flush(e.newValue);
+					},current.assn);
 				}
 			}
 		});
@@ -243,13 +230,15 @@
 		},config);
 		var tmpl = query(cfg.tmpl);
 		var render = query(cfg.render);
+		var data = mock(cfg.data);
 		tmpl.each(function(){
 			var htmlStr = query.getText(this);
 			var tpl = Template.valueOf(htmlStr);
-			var nodes = Template[tpl.type](tpl,cfg.data,{});
+			var nodes = Template[tpl.type](tpl,data,{});
 			render.each(function(){
 				append(this,nodes);
 			});
 		});
+		return data;
 	};
 })(window,document,flyfire);
